@@ -1,24 +1,24 @@
-https://www.ionos.it/digitalguide/siti-web/programmazione-del-sito-web/file-readme/
 # Segregazione
-***
+
 Una simulazione del modello di Schelling con l’utilizzo di MPI in linguaggio C
 
-## Indice dei contenuto
+## Indice dei contenuti
 1. [Descrizione del problema]
 2. [Soluzione proposta]
 3. [La soluzione nel dettaglio]
 4. [Test effettuati]
 5. [Conclusioni]
 
-##1. Descrizione del problema
+## 1. Descrizione del problema
 ***
 La segregazione razziale è una pratica che consiste nella restrizione dei diritti civili su base razzista. Essa riguarda la separazione delle persone nella vita quotidiana e può ripercuotersi su varie attività che i cittadini di una comunità mista svolgono insieme. Nel 1971, l'economista americano Thomas Schelling creò un modello basato su agenti che suggeriva che il comportamento involontario potrebbe anche contribuire alla segregazione. In particolare, tale modello ha mostrato che alcuni individui potrebbero addirittura giungere in uno stato di auto-segregazione anche quando non hanno alcun desiderio esplicito di farlo.
-##2. Soluzione proposta
+## 2. Soluzione proposta
 ***
 Lo scopo di questo progetto è quello di realizzare una simulazione del modello di Schelling con l’utilizzo di MPI, una libreria del linguaggio C che permette lo scambio di messaggi tra processi. 
 In particolare, inizialmente si genererà una griglia dove, in maniera casuale, saranno posizionati degli agenti di due tipi differenti, lasciando la possibilità di avere anche spazi vuoti. Questa griglia, rappresentata da una matrice di dimensione fissata, verrà suddivisa in diverse parti in funzione del numero dei processi partecipanti e ogni parte verrà inviata al corrispettivo processo. Successivamente tutti i partecipanti si scambieranno la prima e l’ultima riga della propria sottomatrice, inviando la prima riga al processo predecessore e l’ultima al successore. Le righe “di confine” saranno utili successivamente ai processi per conoscere lo stato delle celle che confinano con la propria sottomatrice e prendere delle decisioni sugli spostamenti degli agenti basandosi anche su queste. Successivamente inizierà il vero e proprio lavoro che ogni processo dovrà svolgere. 
 In maniera ciclica ogni processo eseguirà una serie di operazioni allo scopo di risolvere il modello di Schelling. Tali operazioni riguardano la scansione della sottomatrice alla ricerca di celle occupate da agenti insoddisfatti e di spazi vuoti dove posizionare tali agenti. Ricordiamo che un’agente viene ritenuto insoddisfatto se e solo se il numero dei suoi vicini dello stesso tipo, in percentuale rispetto al totale dei vicini, è inferiore ad una soglia prestabilita. Dopo aver scansionato la sottomatrice se non sono stati ritrovati agenti insoddisfatti o, inversamente, se ci sono agenti insoddisfatti ma c’è assenza di celle vuote in cui posizionare questi ultimi il processo invia a tutti gli altri il segnale di voler terminare e la terminazione avviene in maniera definitiva solo se tutti hanno la stessa intenzione. Nel caso non si decida di terminare, ovvero, se qualche processo ha ancora agenti insoddisfatti e celle vuote nella propria sottomatrice, il processo effettua gli scambi spostando ogni agente insoddisfatto in una cella libera della sua sottomatrice. Al termine del ciclo, prima di ripartire con una nuova scansione, effettua lo scambio di righe “di confine” tra i processi con la stessa procedura descritta in precedenza. Per evitare alcuni casi critici in cui non si riesce mai a raggiungere la soluzione è stato aggiunto un limite di cicli massimo effettuabili entro il quale i processi tentano di risolvere il problema.
-##3. La soluzione nel dettaglio
+***
+## 3. La soluzione nel dettaglio
 ***
 Il codice sorgente del progetto è inserito in un unico file “segregazione.c”. La soluzione si trova principalmente all’interno della funzione main, la quale richiama altre funzioni che ho realizzato e che spiegherò successivamente all’occorrenza. La logica del programma è strutturata in due blocchi logici, come anticipato anche nell’introduzione: il primo riguarda la generazione e distribuzione della matrice e il secondo la verifica della soddisfazione degli agenti e del loro spostamento. Scendiamo di più nel dettaglio sull’implementazione dei due blocchi.
 Per la logica di generazione e distribuzione della matrice il processo root (nel nostro caso con rank 0) non dichiara una matrice come blocco unico in quanto ogni processo lavorerà solo sulla propria sottomatrice, comunicando con i vicini per trovare la soluzione globale, e dunque la dichiarazione di una matrice unica avrebbe rappresentato uno spreco di memoria. Dunque, il processo con rank 0 fa uso di un buffer di dimensioni pari a COLONNE (la dimensione di una riga, nonché il numero di colonne della matrice) che conterrà i valori pseudocasuali generati con la funzione rand, inizializzata con un seed differente ad ogni esecuzione in modo tale da generare sempre valori differenti ad ogni avvio. Ogni riga generata verrà inviata direttamente ai rispettivi processi e il buffer sarà riutilizzato per le restanti righe. I valori generati sono: 0 per indicare la cella vuota, 1 per indicare il primo agente e 2 per il secondo. Per tutti i test svolti la funzione rand è stata inizializzata invece con il rank del processo root in modo da generare gli stessi numeri pseudocasuali ad ogni esecuzione.
@@ -44,18 +44,23 @@ Descriviamo ancora più nel dettaglio la procedura di controllo dei conflitti:
 *•	L’incremento del numero di giri viene fatto a fine giro da tutti i processi in contemporanea, questo perché i processi potrebbero procedere a velocità differenti, in base al numero di scambi effettuati, di controlli da svolgere ad ogni giro o alla dimensione della sottomatrice e potrebbe accadere che un processo termini i propri giri totali prima di altri, i quali potrebbero continuare a modificare la loro sottomatrice rendendo scorretta la soluzione fornita dai confinanti.
 Quando tutti i processi avranno raggiunto un numero massimo di giri S, definito da una costante, o avranno deciso di terminare insieme il programma terminerà. In fase di terminazione ogni processo tiene conto dell’esito delle sue operazioni, se queste hanno avuto successo (dopo l’ultima scansione il numero delle celle insoddisfatte  nella propria sottomatrice è pari a zero) imposta a 1 una variabile locale che indica questo stato altrimenti la lascia a 0. Successivamente tutti i processi chiamano la funzione MPI_Reduce inviando il valore dello stato di terminazione locale. La reduce consente al processo root di comprendere se la soluzione ottenuta da ogni processo è ottima globalmente o meno e stampa l’esito.
 
-##4. Test effettuati
+## 4. Test effettuati
 ***
 Il primo test è stato svolto in locale con l’utilizzo di Docker e ha avuto come scopo quello di provare la correttezza del programma. Questa è stata provata attraverso diverse esecuzioni con un numero crescente di processi, con la matrice di dimensione fissa e valori invariati. Le diverse esecuzioni hanno avuto sempre lo stesso esito positivo, trovando la soluzione al problema sulla matrice data, impiegando un numero differente di giri a seconda del numero di processi adoperati.
 I due test successivi sulla scalabilità forte e debole del programma sono stati effettuati su di un cluster AWS composto da tre nodi di tipo t2.2xlarge; ognuno dei quali con 8 processori e 32 gigabyte di RAM, per un totale di 24 processori e 96 gigabyte di RAM. Entrambi i test sono stati svolti con un numero crescente di processi, rispettivamente: 1, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24. Anche in questo caso la matrice aveva valori invariati ad ogni esecuzione.
 Le istanze utilizzate sono tre in quanto l’account Students di AWS non consentiva l’utilizzo di più istanze in contemporanea rispetto a quelle utilizzate siccome inizialmente l’intenzione era di utilizzarne quattro. Configurando tutte le macchine nella stessa maniera, nel momento in cui si eseguiva il comando mpirun con quattro nodi e qualsiasi valore di processi da 1 a 32 il comando indicava un errore di autenticazione di un nodo sempre differente diverso dal root (nonostante utilizzassi una connessione SSH senza autenticazione) e il comando non terminava mai la sua esecuzione se non in maniera forzata. Eliminando l’IP di una qualsiasi istanza diversa dalla root dall’hostfile, il comando mpirun riprendeva a funzionare normalmente e ad eseguire fino a 24 processi, limite imposto dagli slot indicati nel file.
-###Strong scalability
+
+### Strong scalability
 Per i test sulla scalabilità forte è stata utilizzata una matrice con dimensione fissa, con un numero di righe e colonne pari a ventimila unità. Il numero di giri massimo del programma è stato invece fissato a cento e tutte le esecuzioni considerate sono quelle che hanno effettuato tutti i giri limite. Mostriamo il diagramma con i tempi (in secondi) registrati per ogni esecuzione:
-![Strong scalability](/path/to/the/screenshot.png)
-###Weak scalability
+
+![Strong scalability](/documentazione/grafici/strong_scalability.png)
+
+### Weak scalability
 Per i test sulla scalabilità debole la dimensione della matrice variava in funzione dei processi, in particolare per ogni esecuzione sono state assegnate mille righe da ventimila valori per ogni processo. Anche in questo caso il numero di iterazioni è stato fissato a cento e sono stati registrati i tempi delle esecuzioni che hanno svolto tutti i giri. Mostriamo il diagramma dei tempi risultante:
-![Weak scalability](/path/to/the/screenshot.png)
-#5. Conclusioni
+
+![Weak scalability](/documentazione/grafici/weak_scalability.png.png)
+
+# 5. Conclusioni
 ***
 In conclusione, dopo aver mostrato i diagrammi sulle tempistiche dei test su strong e weak scalability possiamo affermare che:
 Il tempo per la strong scalability risulta direttamente proporzionale alla dimensione della sottomatrice assegnata ad ogni processo, legata al numero dei processi coinvolti. Inoltre, bisogna tener conto dell’aumento del tempo dovuto allo scambio delle righe di confine che crescono proporzionalmente con il numero di processi utilizzati. Un altro fattore che influisce sui tempi e anch’esso legato al numero di processi utilizzati è la generazione dei conflitti tra sottomatrici vicine in quanto queste vengono modificate da due processi differenti. Questi conflitti, per ovvie ragioni, non si verificano con l’esecuzione con un singolo processo e dunque bisogna tener conto anche di questa sottile differenza. In generale, i tempi registrati per le diverse esecuzioni sono soddisfacenti in quanto già con l’introduzione del parallelismo notiamo un miglioramento del 50%, miglioramento che arriva fino al 95,6% con l’utilizzo di 24 processi.
