@@ -94,7 +94,7 @@ int main() {
 
 		MPI_Request request[numtasks];
 		destinatario = 1;
-
+		printf("\nInizio la generazione e distribuzione della matrice\n");
 		//Per evitare l'aggiunta di controlli ad ogni riga della matrice che viene generata:
 		//divido il for innestato in due: il primo riguarda la generazione dei dati che andranno processo 0 (senza send)
 		//e l'altro con quelli che andranno anche inviati (con send al processo adatto, per ogni riga generata)
@@ -102,16 +102,16 @@ int main() {
 			for (j = 0; j < COLONNE; j++) {
 				buffer[j]= rand() % 3;
 				sottomatrice[i][j] = buffer[j];
-				printf("[%d]", buffer[j]);
+				//printf("[%d]", buffer[j]);
 			}
-			printf("\n");
+			//printf("\n");
 		}
 		for (; i < righetot;i++) {
 			for (j = 0; j < COLONNE; j++) {
 				buffer[j] = rand() % 3;
-				printf("[%d]", buffer[j]);
+				//printf("[%d]", buffer[j]);
 			}
-			printf("\n");
+			//printf("\n");
 			//invia una riga in più al destinatario a cui spetta
 			if (destinatario < resto) { 
 				if (numMessaggi == divisione+1) {
@@ -131,6 +131,7 @@ int main() {
 			MPI_Isend(&buffer, COLONNE, MPI_INT, destinatario, tag, MPI_COMM_WORLD, &request[destinatario]);
 			numMessaggi++;
 		}
+		printf("Generazione conclusa, procedo con la seconda fase del processo\n\n");
 	}
 	else {	//I processi non root ricevono le righe che gli spettano e le salvano nella sottomatrice
 		MPI_Status stat;
@@ -595,16 +596,6 @@ int main() {
 
 	}
 
-	MPI_Barrier(MPI_COMM_WORLD);
-	end = clock();
-	if (rank == 0) {
-		//concludo la misurazione del tempo e stampo il risultato
-		double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
-		//conversione in secondi
-		time_spent = time_spent * 1000;
-		printf("il tempo impiegato dal programma (in millisecondi) e': %f\n", time_spent);
-	}
-
 	int soluzioneLoc = 0, soluzioneGlob = 0;
 	
 	if (numInsoddisfatti == 0) {
@@ -613,16 +604,28 @@ int main() {
 	}
 
 	MPI_Reduce(&soluzioneLoc, &soluzioneGlob, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-
+	
 	if (rank == 0) {
+		if (numGiro > S)
+			printf("Limite di giri raggiunto. ");
+
 		if (soluzioneGlob == numtasks)
 			printf("La soluzione fornita dai processi e' ottima globalmente\n");
 		else
 			printf("La soluzione fornita dai processi non e' ottima globalmente\n");
 
-		printf("numero giri compiuti %d\n", numGiro-1);
+		//printf("numero giri compiuti %d\n", numGiro-1);
 	}
 	
+	MPI_Barrier(MPI_COMM_WORLD);
+	end = clock();
+	if (rank == 0) {
+		//concludo la misurazione del tempo e stampo il risultato
+		double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+		//conversione in secondi
+		time_spent = time_spent * 1000;
+		printf("Il tempo impiegato dal programma (in millisecondi) e': %f\n\n", time_spent);
+	}
 
 	MPI_Finalize();
 	return 0;
