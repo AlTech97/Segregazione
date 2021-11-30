@@ -10,16 +10,16 @@ Una simulazione del modello di Schelling con l’utilizzo di MPI in linguaggio C
 4. [Test effettuati](#4-test-effettuati)
 5. [Conclusioni](#5-conclusioni)
 
+
 ## 0. Esecuzione con Docker
 ***
-Per compilare ed eseguire il codice con Docker, dopo averlo installato:
+Per compilare ed eseguire il codice con Docker 🐳:
+* docker pull spagnuolocarmine/docker-mpi
 * docker run -it --mount src="$(pwd)",target=/home,type=bind spagnuolocarmine/docker-mpi:latest
-	* Alla prima esecuzione scaricherà l'immagine del container richiesto
-	* Per le successive esecuzioni controllerà soltanto se ci sono aggiornamenti del container altrimenti avvia quello che già ha scaricato
 	* Nel parametro src è possibile indicare tra virgolette qualsiasi altro path (ad esempio quello della repository con il codice da compilare)
-	* Avviato il container visualizzeremo la sua shell e potremo spostarci nella directory home (cd home)
+	* Avviato il container, visualizzeremo la sua shell e potremo spostarci nella directory home (cd home) contenente il file del progetto
 * mpicc -o segregazione segregazione.c
-	* compila il progetto e ottieni l'eseguibile
+	* compila il progetto mpi e ottieni l'eseguibile
 * mpirun --allow-run-as-root -np [numero processi] segregazione
 	* Avvia il programma appena compilato con il numero di processi indicato
 	* Se si desidera avviare un numero di processi maggiore rispetto al numero di nodi (o processori) aggiungere il parametro --oversubscribe
